@@ -1,0 +1,44 @@
+version: '3.5'
+services:
+  localstack:
+    image: localstack/localstack:0.11.2
+    networks:
+      - foo
+    container_name: localstack
+    ports:
+      - "8080:443"
+      - "4561-4597:4561-4597"
+    environment:
+      - LOCALSTACK_API_KEY=${LOCALSTACK_API_KEY}
+      - SERVICES=dynamodb,ssm,sts,ecs,ec2,ecr,elasticache,s3,route53,iam,lambda,sqs,sns,logs,cloudwatch,events,stepfunctions,cloudfront,cloudformation
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DATA_DIR=/tmp/localstack/data
+      - HTTP_PROXY=http://mitmproxy:8091
+      - LAMBDA_EXECUTOR=docker
+      - LAMBDA_DOCKER_NETWORK=bar
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - "${TMPDIR:-/tmp/localstack}:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  mitmproxy:
+    container_name: mitmproxy
+    networks:
+      - foo
+    image: mitmproxy/mitmproxy
+    tty: true
+    volumes:
+      - './proxy.py:/home/mitmproxy/proxy.py'
+    entrypoint: mitmweb --set ssl_insecure=true -s /home/mitmproxy/proxy.py -w outfile --listen-port 8091 --web-port 8092 --web-host 0.0.0.0
+    ports:
+      - '8091:8091'
+      - '8092:8092'
+    expose:
+      - '8091'
+      - '8092'
+    depends_on:
+      - localstack
+
+networks:
+  foo:
+    name: bar
